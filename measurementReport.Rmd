@@ -7,24 +7,120 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(plyr)
+library(tidyverse)
+library(broom)
+library(cowplot)
+library(scales)
+library(ggpubr)
+library(rlang)
+library(gganimate)
+library(ggrepel)
+library(MetBrewer)
+library(gifski)
+library(ggExtra)
 ```
 
-## R Markdown
+## Mandible width to body length:
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+This plot present larval mandible width vs. body length, with key benchmarks noted:
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+```{r pressure, echo=FALSE, warning=FALSE, message=FALSE, fig.dim = c(15, 20)}
+# Read in larval measurements:
+keyenceMeasurements <- read_csv(file = "keyenceData.csv") %>%
+  separate(col = color,
+           into = c("rValue",
+                    "gValue",
+                    "bValue"),
+    sep = ",",
+    remove = TRUE)
 
-```{r cars}
-summary(cars)
+keyenceMeasurements$rValue <- gsub(".*:",
+                                   "",
+                                   keyenceMeasurements$rValue)
+keyenceMeasurements$gValue <- gsub(".*:",
+                                   "",
+                                   keyenceMeasurements$gValue)
+keyenceMeasurements$bValue <- gsub(".*:",
+                                   "",
+                                   keyenceMeasurements$bValue)
+possiblyRGB <- purrr::possibly(rgb,
+                               otherwise = "NA")
+keyenceMeasurements$hexColor <- purrr::pmap(.l = list(keyenceMeasurements$rValue,
+                                                   keyenceMeasurements$gValue,
+                                                   keyenceMeasurements$bValue),
+                                            possiblyRGB,
+                                           maxColorValue = 255)
+
+# Make colony a categorical variable:
+keyenceMeasurements$colony <- as.character(keyenceMeasurements$colony)
+
+# Get means for key life stages:
+soldiers <- filter(keyenceMeasurements, collectingTrip == "Aug-23", lifeStage == "soldierPupa")
+soldiersMean <- mean(soldiers$body)
+eggs <- filter(keyenceMeasurements, collectingTrip == "Aug-23", lifeStage == "egg")
+eggsMean <- mean(eggs$body)
+workers <- filter(keyenceMeasurements, collectingTrip == "Aug-23", lifeStage == "workerPupa")
+workersMean <- mean(workers$body)
+queen <- filter(keyenceMeasurements, collectingTrip == "Aug-23", lifeStage == "queenPupa")
+queenMean <- mean(queen$body)
+male <- filter(keyenceMeasurements, collectingTrip == "Aug-23", lifeStage == "malePupa")
+maleMean <- mean(male$body)
+prepupae <- filter(keyenceMeasurements, collectingTrip == "Aug-23", lifeStage == "prepupa")
+prepupaeMean <- mean(prepupae$topOfMandibles,
+                     na.rm = TRUE)
+
+print(paste("Soldier pupa mean body length is ",
+            soldiersMean,
+            " uM",
+            sep = ""))
+print(paste("Worker pupa mean body length is ",
+            workersMean,
+            " uM",
+            sep = ""))
+print(paste("Queen pupa mean body length is ",
+            queenMean,
+            " uM",
+            sep = ""))
+print(paste("Male pupa mean body length is ",
+            maleMean,
+            " uM",
+            sep = ""))
+print(paste("The mean prepupal head width is ",
+            prepupaeMean,
+            " uM",
+            sep = ""))
+
+# Plot mandible measurements:
+topMandible <- ggplot(data = filter(keyenceMeasurements,
+                                    collectingTrip == "Aug-23"),
+                      mapping = aes(y = body, 
+                                    x = topOfMandibles,
+                                    shape = lifeStage,
+                                    colour = hexColor)) +
+  geom_point(size = 3,
+             alpha = 0.75) +
+  coord_trans(x="log10", 
+              y="log10") + 
+  geom_hline(yintercept = workersMean) +
+  geom_hline(yintercept = eggsMean) +
+  geom_hline(yintercept = soldiersMean) +
+  geom_hline(yintercept = queenMean) +
+  geom_hline(yintercept = maleMean) +
+  geom_vline(xintercept = prepupaeMean) +
+  ggtitle("Head width to body length") +
+  xlab("Mandible width (log10, μm)") + 
+  ylab("Body length (log10, μm)") + 
+  theme_bw() +
+  geom_text(mapping = aes(label = filename), 
+            check_overlap = TRUE, 
+            vjust = 1.5,
+            size = 2.5) 
+#+ theme(panel.background = element_rect(fill = "#2A2930"))
+
+
+ggMarginal(topMandible, 
+           type = "histogram",
+           bins = 100)
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
