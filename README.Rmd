@@ -29,6 +29,7 @@ library(ggExtra)
 This plot present larval mandible width vs. body length, with key benchmarks noted:
 
 ```{r pressure, echo=FALSE, warning=FALSE, message=FALSE, fig.dim = c(15, 20)}
+
 # Read in larval measurements:
 keyenceMeasurements <- read_csv(file = "keyenceData.csv") %>%
   separate(col = color,
@@ -120,10 +121,11 @@ topMandible <- ggplot(data = filter(keyenceMeasurements,
             vjust = 1.5,
             size = 2.5) 
 #+ theme(panel.background = element_rect(fill = "#2A2930"))
-
-
-ggMarginal(topMandible, 
-           type = "histogram",
-           bins = 100)
+topMandible
+ggsave("./mandiblePlot.png",
+       height = 15,
+       width = 20,
+       units = "in",
+       limitsize = FALSE)
 ```
 
