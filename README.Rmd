@@ -107,8 +107,8 @@ topMandible <- ggplot(data = filter(keyenceMeasurements,
                                     colour = hexColor)) +
   geom_point(size = 3,
              alpha = 0.75) +
-  coord_trans(x = "log10", 
-              y = "log10") + 
+ # coord_trans(x = "log10", 
+ #             y = "log10") + 
   geom_hline(yintercept = workersMean) +
   geom_hline(yintercept = eggsMean) +
   geom_hline(yintercept = soldiersMean) +
@@ -122,7 +122,9 @@ topMandible <- ggplot(data = filter(keyenceMeasurements,
   geom_text(mapping = aes(label = filename), 
             check_overlap = TRUE, 
             vjust = 1.5,
-            size = 3) 
+            size = 3) +
+scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+scale_y_continuous(breaks = scales::pretty_breaks(n = 10))
 #+ theme(panel.background = element_rect(fill = "#2A2930"))
 topMandible
 ggsave("./mandiblePlot.png",
@@ -132,7 +134,7 @@ ggsave("./mandiblePlot.png",
        limitsize = FALSE)
 ```
 
-Note that three larvae from MEBLHPR4831 are currently developing into queens (I think) and have been measured on 9/27 and 10/02.
+Note that three larvae from MEBLHPR4831 are currently developing into queens (I think) and have been measured on 9/27, 10/02, and 10/13.
 
 ```{r barplot, echo=FALSE, warning=FALSE, message=FALSE, fig.dim = c(15, 20)}
 
