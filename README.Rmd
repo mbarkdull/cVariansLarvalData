@@ -28,7 +28,7 @@ library(ggExtra)
 
 This plot present larval mandible width vs. body length, with key benchmarks noted:
 
-```{r pressure, echo=FALSE, warning=FALSE, message=FALSE, fig.dim = c(15, 20)}
+```{r scatterplot, echo=FALSE, warning=FALSE, message=FALSE, fig.dim = c(15, 20)}
 
 # Read in larval measurements:
 keyenceMeasurements <- read_csv(file = "keyenceData.csv") %>%
@@ -60,17 +60,19 @@ keyenceMeasurements$hexColor <- purrr::pmap(.l = list(keyenceMeasurements$rValue
 keyenceMeasurements$colony <- as.character(keyenceMeasurements$colony)
 
 # Get means for key life stages:
-soldiers <- filter(keyenceMeasurements, collectingTrip == "Aug-23", lifeStage == "soldierPupa")
+tools::showNonASCII(keyenceMeasurements$lifeStage)
+
+soldiers <- filter(keyenceMeasurements, collectingTrip == "23-Aug", lifeStage == "soldierPupa")
 soldiersMean <- mean(soldiers$body)
-eggs <- filter(keyenceMeasurements, collectingTrip == "Aug-23", lifeStage == "egg")
+eggs <- filter(keyenceMeasurements, collectingTrip == "23-Aug", lifeStage == "egg")
 eggsMean <- mean(eggs$body)
-workers <- filter(keyenceMeasurements, collectingTrip == "Aug-23", lifeStage == "workerPupa")
+workers <- filter(keyenceMeasurements, collectingTrip == "23-Aug", lifeStage == "workerPupa")
 workersMean <- mean(workers$body)
-queen <- filter(keyenceMeasurements, collectingTrip == "Aug-23", lifeStage == "queenPupa")
+queen <- filter(keyenceMeasurements, collectingTrip == "23-Aug", lifeStage == "queenPupa")
 queenMean <- mean(queen$body)
-male <- filter(keyenceMeasurements, collectingTrip == "Aug-23", lifeStage == "malePupa")
+male <- filter(keyenceMeasurements, collectingTrip == "23-Aug", lifeStage == "malePupa")
 maleMean <- mean(male$body)
-prepupae <- filter(keyenceMeasurements, collectingTrip == "Aug-23", lifeStage == "prepupa")
+prepupae <- filter(keyenceMeasurements, collectingTrip == "23-Aug", lifeStage == "prepupa")
 prepupaeMean <- mean(prepupae$topOfMandibles,
                      na.rm = TRUE)
 
@@ -97,15 +99,16 @@ print(paste("The mean prepupal head width is ",
 
 # Plot mandible measurements:
 topMandible <- ggplot(data = filter(keyenceMeasurements,
-                                    collectingTrip == "Aug-23"),
+                                    collectingTrip == "23-Aug", 
+                                    lifeStage != "egg"),
                       mapping = aes(y = body, 
                                     x = topOfMandibles,
                                     shape = lifeStage,
                                     colour = hexColor)) +
   geom_point(size = 3,
              alpha = 0.75) +
-  coord_trans(x="log10", 
-              y="log10") + 
+  coord_trans(x = "log10", 
+              y = "log10") + 
   geom_hline(yintercept = workersMean) +
   geom_hline(yintercept = eggsMean) +
   geom_hline(yintercept = soldiersMean) +
@@ -119,7 +122,7 @@ topMandible <- ggplot(data = filter(keyenceMeasurements,
   geom_text(mapping = aes(label = filename), 
             check_overlap = TRUE, 
             vjust = 1.5,
-            size = 2.5) 
+            size = 3) 
 #+ theme(panel.background = element_rect(fill = "#2A2930"))
 topMandible
 ggsave("./mandiblePlot.png",
@@ -129,3 +132,27 @@ ggsave("./mandiblePlot.png",
        limitsize = FALSE)
 ```
 
+Note that three larvae from MEBLHPR4831 are currently developing into queens (I think) and have been measured on 9/27 and 10/02.
+
+```{r barplot, echo=FALSE, warning=FALSE, message=FALSE, fig.dim = c(15, 20)}
+
+# Plot mandible measurements:
+topMandibleBarPlot <- ggplot(data = filter(keyenceMeasurements,
+                                    collectingTrip == "23-Aug"),
+                      mapping = aes(x = topOfMandibles,
+                                    shape = lifeStage,
+                                    colour = hexColor)) +
+  geom_histogram(bins = 25) +
+  coord_trans(x = "log10") + 
+  ggtitle("Head width distribution") +
+  xlab("Mandible width (log10, μm)") + 
+  ylab("Count") + 
+  theme_bw() 
+
+topMandibleBarPlot
+ggsave("./mandibleBarPlot.png",
+       height = 6,
+       width = 20,
+       units = "in",
+       limitsize = FALSE)
+```
