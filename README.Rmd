@@ -22,6 +22,7 @@ library(ggrepel)
 library(MetBrewer)
 library(gifski)
 library(ggExtra)
+library(plotly)
 ```
 
 ## Mandible width to body length:
@@ -55,29 +56,135 @@ keyenceMeasurements$hexColor <- purrr::pmap(.l = list(keyenceMeasurements$rValue
                                                    keyenceMeasurements$bValue),
                                             possiblyRGB,
                                            maxColorValue = 255)
+# Get dates of measurement:
+is_number <- function (x, allow_decimal = FALSE, allow_infinite = FALSE) {
+    if (!typeof(x) %in% c("integer", "double")) {
+        return(FALSE)
+    }
+    if (length(x) != 1) {
+        return(FALSE)
+    }
+    if (is.na(x)) {
+        return(FALSE)
+    }
+    if (!allow_decimal && !is_integerish(x)) {
+        return(FALSE)
+    }
+    if (!allow_infinite && is.infinite(x)) {
+        return(FALSE)
+    }
+    TRUE
+}
+str_split_i <- function (string, pattern, i) {
+  check_number_whole <- function (x, ..., min = -Inf, max = Inf, allow_na = FALSE, allow_null = FALSE, 
+    arg = caller_arg(x), call = caller_env()) 
+{
+    .rlang_types_check_number <- function (x, ..., min = -Inf, max = Inf, allow_decimal = FALSE, 
+    allow_infinite = FALSE, allow_na = FALSE, allow_null = FALSE, 
+    arg = caller_arg(x), call = caller_env()) 
+{
+    if (allow_decimal) {
+        what <- "a number"
+    }
+    else {
+        what <- "a whole number"
+    }
+    .stop <- function(x, what, ...) stop_input_type(x, what, 
+        ..., allow_na = allow_na, allow_null = allow_null, arg = arg, 
+        call = call)
+    if (!missing(x)) {
+        is_number <- is_number(x, allow_decimal = allow_decimal, 
+            allow_infinite = allow_infinite)
+        if (is_number) {
+            if (min > -Inf && max < Inf) {
+                what <- sprintf("a number between %s and %s", 
+                  min, max)
+            }
+            else {
+                what <- NULL
+            }
+            if (x < min) {
+                what <- what %||% sprintf("a number larger than %s", 
+                  min)
+                .stop(x, what, ...)
+            }
+            if (x > max) {
+                what <- what %||% sprintf("a number smaller than %s", 
+                  max)
+                .stop(x, what, ...)
+            }
+            return(invisible(NULL))
+        }
+        if (allow_null && is_null(x)) {
+            return(invisible(NULL))
+        }
+        if (allow_na && (identical(x, NA) || identical(x, na_dbl) || 
+            identical(x, na_int))) {
+            return(invisible(NULL))
+        }
+    }
+    .stop(x, what, ...)
+}
+    .rlang_types_check_number(x, ..., min = min, max = max, allow_decimal = FALSE, 
+        allow_infinite = FALSE, allow_na = allow_na, allow_null = allow_null, 
+        arg = arg, call = call)
+}
+    check_number_whole(i)
+    if (i > 0) {
+        out <- str_split(string, pattern, simplify = NA, n = i + 
+            1)
+        out[, i]
+    }
+    else if (i < 0) {
+        i <- abs(i)
+        pieces <- str_split(string, pattern)
+        last <- function(x) {
+            n <- length(x)
+            if (i > n) {
+                NA_character_
+            }
+            else {
+                x[[n + 1 - i]]
+            }
+        }
+        map_chr(pieces, last)
+    }
+    else {
+        cli::cli_abort("{.arg i} must not be 0.")
+    }
+}
+keyenceMeasurements$dateMeasured <- str_split_i(keyenceMeasurements$filename,
+                                              pattern = "_", 
+                                              i = 3)
+keyenceMeasurements$dateMeasured <- factor(keyenceMeasurements$dateMeasured)
 
-# Make colony a categorical variable:
+# Make colony a categorical variable and life stage a factor:
 keyenceMeasurements$colony <- as.character(keyenceMeasurements$colony)
+keyenceMeasurements$lifeStage <- factor(keyenceMeasurements$lifeStage)
 
 # Get means for key life stages:
 tools::showNonASCII(keyenceMeasurements$lifeStage)
 
-soldiers <- filter(keyenceMeasurements, collectingTrip == "23-Aug", lifeStage == "soldierPupa")
+soldiers <- filter(keyenceMeasurements, collectingTrip == "August", lifeStage == "soldierPupa")
 soldiersMean <- mean(soldiers$body)
-eggs <- filter(keyenceMeasurements, collectingTrip == "23-Aug", lifeStage == "egg")
+eggs <- filter(keyenceMeasurements, collectingTrip == "August", lifeStage == "egg")
 eggsMean <- mean(eggs$body)
-workers <- filter(keyenceMeasurements, collectingTrip == "23-Aug", lifeStage == "workerPupa")
+workers <- filter(keyenceMeasurements, collectingTrip == "August", lifeStage == "workerPupa")
 workersMean <- mean(workers$body)
-queen <- filter(keyenceMeasurements, collectingTrip == "23-Aug", lifeStage == "queenPupa")
+queen <- filter(keyenceMeasurements, collectingTrip == "August", lifeStage == "queenPupa")
 queenMean <- mean(queen$body)
-male <- filter(keyenceMeasurements, collectingTrip == "23-Aug", lifeStage == "malePupa")
+male <- filter(keyenceMeasurements, collectingTrip == "August", lifeStage == "malePupa")
 maleMean <- mean(male$body)
-prepupae <- filter(keyenceMeasurements, collectingTrip == "23-Aug", lifeStage == "prepupa")
+prepupae <- filter(keyenceMeasurements, collectingTrip == "August", lifeStage == "prepupa")
 prepupaeMean <- mean(prepupae$topOfMandibles,
                      na.rm = TRUE)
 
 print(paste("Soldier pupa mean body length is ",
             soldiersMean,
+            " uM",
+            sep = ""))
+print(paste("The halfpoint between soldier and worker body length is ",
+            (soldiersMean + workersMean)/2,
             " uM",
             sep = ""))
 print(paste("Worker pupa mean body length is ",
@@ -99,14 +206,16 @@ print(paste("The mean prepupal head width is ",
 
 # Plot mandible measurements:
 topMandible <- ggplot(data = filter(keyenceMeasurements,
-                                    collectingTrip == "23-Aug", 
-                                    lifeStage != "egg"),
+                                    collectingTrip == "August", 
+                                    lifeStage != "egg",
+                                    is.na(concerns)),
                       mapping = aes(y = body, 
                                     x = topOfMandibles,
                                     shape = lifeStage,
                                     colour = hexColor)) +
   geom_point(size = 3,
              alpha = 0.75) +
+  scale_shape_manual(values = 15:25) +
  # coord_trans(x = "log10", 
  #             y = "log10") + 
   geom_hline(yintercept = workersMean) +
@@ -116,13 +225,14 @@ topMandible <- ggplot(data = filter(keyenceMeasurements,
   geom_hline(yintercept = maleMean) +
   geom_vline(xintercept = prepupaeMean) +
   ggtitle("Head width to body length") +
-  xlab("Mandible width (log10, μm)") + 
-  ylab("Body length (log10, μm)") + 
+  xlab("Mandible width (μm)") + 
+  ylab("Body length (μm)") + 
   theme_bw() +
-  geom_text(mapping = aes(label = filename), 
-            check_overlap = TRUE, 
-            vjust = 1.5,
-            size = 3) +
+  #geom_text(mapping = aes(label = filename), 
+            #check_overlap = TRUE, 
+            #vjust = 1.5,
+            #size = 3,
+            #angle = 90) +
 scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
 scale_y_continuous(breaks = scales::pretty_breaks(n = 10))
 #+ theme(panel.background = element_rect(fill = "#2A2930"))
@@ -134,22 +244,26 @@ ggsave("./mandiblePlot.png",
        limitsize = FALSE)
 ```
 
-Note that three larvae from MEBLHPR4831 are currently developing into queens (I think) and have been measured on 9/27, 10/02, and 10/13.
+Note that three larvae from MEBLHPR4831 are currently developing into queens, and were measured on 9/27, 10/02, 10/13, and 10/25, by which point one of them had pupated and I froze all three.
 
 ```{r barplot, echo=FALSE, warning=FALSE, message=FALSE, fig.dim = c(15, 20)}
 
 # Plot mandible measurements:
 topMandibleBarPlot <- ggplot(data = filter(keyenceMeasurements,
-                                    collectingTrip == "23-Aug"),
-                      mapping = aes(x = topOfMandibles,
-                                    shape = lifeStage,
-                                    colour = hexColor)) +
-  geom_histogram(bins = 25) +
+                                    collectingTrip == "August",
+                                    lifeStage == "larva" | 
+                                      lifeStage == "prepupa"| 
+                                      lifeStage == "aboutToPupate" | 
+                                      lifeStage == "malePrepupa",
+                                    is.na(concerns)),
+                      mapping = aes(x = topOfMandibles)) +
+  geom_histogram(bins = 35) +
   coord_trans(x = "log10") + 
   ggtitle("Head width distribution") +
   xlab("Mandible width (log10, μm)") + 
   ylab("Count") + 
-  theme_bw() 
+  theme_bw() +
+scale_x_continuous(breaks = scales::pretty_breaks(n = 10))
 
 topMandibleBarPlot
 ggsave("./mandibleBarPlot.png",
